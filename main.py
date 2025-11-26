@@ -356,6 +356,74 @@ async def update_channel_stats(update: Update, context: ContextTypes.DEFAULT_TYP
         conn.close()
 
 
+# Command /find
+async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Укажите имя своего канала.\n"
+            "Пример: /find @mychannel"
+        )
+        return
+
+    channel_username = context.args[0].strip()
+    if not channel_username.startswith('@'):
+        channel_username = '@' + channel_username
+
+    conn = Database.get_connection()
+    if not conn:
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+        return
+
+    cursor = conn.cursor(dictionary=True)
+
+    # Getting subscribers to a user's channel
+    cursor.execute(
+        "SELECT subscriber_count FROM channels WHERE channel_username = %s",
+        (channel_username,)
+    )
+
+    result = cursor.fetchone()
+    if not result:
+        await update.message.reply_text(
+            f"❌ Канал {channel_username} не найден в каталоге.\n"
+            "Добавьте его командой /add"
+        )
+        cursor.close()
+        conn.close()
+        return
+
+    target_count = result['subscriber_count']
+
+    # Looking for similar channels (±100 subscribers)
+    cursor.execute(
+        "SELECT channel_username, subscriber_count "
+        "FROM channels "
+        "WHERE channel_username != %s "
+        "AND subscriber_count BETWEEN %s AND %s "
+        "ORDER BY RAND() LIMIT 10",
+        (channel_username, target_count - 100, target_count + 100)
+    )
+
+    channels = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if not channels:
+        await update.message.reply_text(
+            "😔 К сожалению, не найдено каналов с похожей аудиторией.\n"
+            "Попробуйте позже."
+        )
+        return
+
+    text = f"🔍 *Найдено {len(channels)} похожих каналов:*\n\n"
+    for ch in channels:
+        text += f"• {ch['channel_username']} - 👥 {ch['subscriber_count']} подписчиков\n"
+
+    text += "\n💡 Подпишитесь на канал, сделайте репост и используйте /done *[канал]*."
+
+    await update.message.reply_text(text, parse_mode='Markdown')
+
+
 # Error handler
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"Update {update} caused error {context.error}")
@@ -375,7 +443,7 @@ def main():
     application.add_handler(CommandHandler("my", my_channels))
     application.add_handler(CommandHandler("delete", delete_channel))
     application.add_handler(CommandHandler("update", update_channel_stats))
-    # application.add_handler(CommandHandler("find", find_channels))
+    application.add_handler(CommandHandler("find", find_channels))
     # application.add_handler(CommandHandler("done", done_repost))
     # application.add_handler(CommandHandler("confirm", confirm_repost))
     # application.add_handler(CommandHandler("list", list_pending))
