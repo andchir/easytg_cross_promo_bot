@@ -90,7 +90,41 @@ class Database:
         conn.commit()
         cursor.close()
         conn.close()
-        logger.info("База данных инициализирована")
+        logger.info("The database has been initialized.")
+
+
+# Command /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 Добро пожаловать в бот обмена аудиторией!\n\n"
+        "Используйте /help для просмотра всех команд."
+    )
+
+
+# Command /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_text = """
+📚 *Справка по командам:*
+
+/add - Добавить свой канал в каталог
+/my - Показать мои каналы
+/delete *[канал]* - Удалить канал из каталога
+/update *[канал]* - Обновить количество подписчиков
+/find *[канал]* - Найти похожие каналы для обмена
+/done *[канал]* - Сообщить владельцу канала о выполненном репосте
+/confirm *[свой_канал]* *[канал_репоста]* - Подтвердить репост
+/list - Список каналов, ожидающих подтверждения
+/abuse *[канал]* *[причина]* - Пожаловаться на канал и владельца
+/help - Показать эту справку
+
+*Как это работает:*
+1. Добавьте свой канал командой /add
+2. Найдите похожие каналы /find
+3. Подпишитесь и сделайте репост
+4. Сообщите /done после репоста
+5. Владелец канала подтвердит /confirm
+    """
+    await update.message.reply_text(help_text, parse_mode='Markdown')
 
 
 # Command /add
@@ -134,7 +168,7 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Save in the database
         conn = Database.get_connection()
         if not conn:
-            await update.message.reply_text("❌ Ошибка подключения к базе данных")
+            await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
             return
 
         cursor = conn.cursor()
@@ -153,7 +187,7 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except mysql.connector.IntegrityError:
             await update.message.reply_text(
-                f"❌ Канал {channel_username} уже добавлен в каталог"
+                f"❌ Канал {channel_username} уже добавлен в каталог."
             )
         finally:
             cursor.close()
@@ -165,40 +199,6 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"❌ Не удалось получить информацию о канале {channel_username}.\n"
             "Проверьте правильность имени и что канал публичный."
         )
-
-
-# Command /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Добро пожаловать в бот обмена аудиторией!\n\n"
-        "Используйте /help для просмотра всех команд."
-    )
-
-
-# Command /help
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = """
-📚 *Справка по командам:*
-
-/add - Добавить свой канал в каталог
-/my - Показать мои каналы
-/delete *[канал]* - Удалить канал из каталога
-/update *[канал]* - Обновить количество подписчиков
-/find *[канал]* - Найти похожие каналы для обмена
-/done *[канал]* - Сообщить владельцу канала о выполненном репосте
-/confirm *[свой_канал]* *[канал_репоста]* - Подтвердить репост
-/list - Список каналов, ожидающих подтверждения
-/abuse *[канал]* *[причина]* - Пожаловаться на канал и владельца
-/help - Показать эту справку
-
-*Как это работает:*
-1. Добавьте свой канал командой /add
-2. Найдите похожие каналы /find
-3. Подпишитесь и сделайте репост
-4. Сообщите /done после репоста
-5. Владелец канала подтвердит /confirm
-    """
-    await update.message.reply_text(help_text, parse_mode='Markdown')
 
 
 # Command /my
@@ -222,7 +222,7 @@ async def my_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.close()
 
     if not channels:
-        await update.message.reply_text("📭 У вас нет добавленных каналов")
+        await update.message.reply_text("📭 У вас нет добавленных каналов.")
         return
 
     text = "📋 *Ваши каналы:*\n\n"
@@ -230,6 +230,53 @@ async def my_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"• {ch['channel_username']} - 👥 {ch['subscriber_count']} подписчиков\n"
 
     await update.message.reply_text(text, parse_mode='Markdown')
+
+
+# Command /delete
+async def delete_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Укажите имя канала.\n"
+            "Пример: /delete @mychannel"
+        )
+        return
+
+    channel_username = context.args[0].strip()
+    if not channel_username.startswith('@'):
+        channel_username = '@' + channel_username
+
+    conn = Database.get_connection()
+    if not conn:
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+        return
+
+    cursor = conn.cursor()
+
+    # Checking if the user is the owner
+    cursor.execute(
+        "SELECT id FROM channels WHERE channel_username = %s AND owner_user_id = %s",
+        (channel_username, user_id)
+    )
+
+    if not cursor.fetchone():
+        await update.message.reply_text(
+            f"❌ Канал {channel_username} не найден или вы не являетесь владельцем."
+        )
+        cursor.close()
+        conn.close()
+        return
+
+    cursor.execute(
+        "DELETE FROM channels WHERE channel_username = %s AND owner_user_id = %s",
+        (channel_username, user_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    await update.message.reply_text(f"✅ Канал {channel_username} удалён из каталога.")
 
 
 # Error handler
@@ -249,7 +296,7 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("add", add_channel))
     application.add_handler(CommandHandler("my", my_channels))
-    # application.add_handler(CommandHandler("delete", delete_channel))
+    application.add_handler(CommandHandler("delete", delete_channel))
     # application.add_handler(CommandHandler("update", update_channel_stats))
     # application.add_handler(CommandHandler("find", find_channels))
     # application.add_handler(CommandHandler("done", done_repost))
