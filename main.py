@@ -227,7 +227,7 @@ async def my_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = "📋 *Ваши каналы:*\n\n"
     for ch in channels:
-        text += f"• {ch['channel_username']} - 👥 {ch['subscriber_count']} подписчиков\n"
+        text += f"• *{ch['channel_username']}* - 👥 {ch['subscriber_count']} подписчиков\n"
 
     await update.message.reply_text(text, parse_mode='Markdown')
 
@@ -279,7 +279,7 @@ async def delete_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Канал {channel_username} удалён из каталога.")
 
 
-# Команда /update
+# Command /update
 async def update_channel_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
@@ -369,6 +369,8 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not channel_username.startswith('@'):
         channel_username = '@' + channel_username
 
+    user_id = update.effective_user.id
+
     conn = Database.get_connection()
     if not conn:
         await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
@@ -399,9 +401,10 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT channel_username, subscriber_count "
         "FROM channels "
         "WHERE channel_username != %s "
+        "AND owner_user_id != %s "
         "AND subscriber_count BETWEEN %s AND %s "
         "ORDER BY RAND() LIMIT 10",
-        (channel_username, target_count - 100, target_count + 100)
+        (channel_username, user_id, target_count - 100, target_count + 100)
     )
 
     channels = cursor.fetchall()
