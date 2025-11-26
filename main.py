@@ -120,8 +120,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 *Как это работает:*
 1. Добавьте свой канал командой /add
 2. Найдите похожие каналы /find
-3. Подпишитесь и сделайте репост
-4. Сообщите /done после репоста любого поста
+3. Подпишитесь и сделайте репост любого поста
+4. Сообщите /done после репоста
 5. Владелец канала подтвердит /confirm
     """
     await update.message.reply_text(help_text, parse_mode='Markdown')
