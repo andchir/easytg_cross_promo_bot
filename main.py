@@ -123,6 +123,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 3. Подпишитесь и сделайте репост любого поста
 4. Сообщите /done после репоста
 5. Владелец канала подтвердит /confirm
+6. Ожидайте ответного репоста
     """
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
