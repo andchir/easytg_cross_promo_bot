@@ -672,6 +672,42 @@ async def confirm_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Не удалось отправить уведомление: {e}")
 
 
+# Command /list
+async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    conn = Database.get_connection()
+    if not conn:
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+        return
+
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT r.from_channel, r.to_channel, r.created_date "
+        "FROM reposts r "
+        "WHERE r.to_user_id = %s AND r.status = 'pending' "
+        "ORDER BY r.created_date DESC",
+        (user_id,)
+    )
+
+    reposts = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if not reposts:
+        await update.message.reply_text("📭 Нет ожидающих подтверждения репостов.")
+        return
+
+    text = "📋 *Ожидают подтверждения:*\n\n"
+    for r in reposts:
+        date_str = r['created_date'].strftime('%d.%m.%Y %H:%M')
+        text += f"• *{r['from_channel']}* → *{r['to_channel']}*\n  📅 {date_str}\n\n"
+
+    text += "Используйте /confirm *[свой_канал]* *[канал_репоста]* для подтверждения."
+
+    await update.message.reply_text(text, parse_mode='Markdown')
+
+
 # Error handler
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"Update {update} caused error {context.error}")
@@ -694,7 +730,7 @@ def main():
     application.add_handler(CommandHandler("find", find_channels))
     application.add_handler(CommandHandler("done", done_repost))
     application.add_handler(CommandHandler("confirm", confirm_repost))
-    # application.add_handler(CommandHandler("list", list_pending))
+    application.add_handler(CommandHandler("list", list_pending))
     # application.add_handler(CommandHandler("abuse", report_abuse))
 
     # Error handler
