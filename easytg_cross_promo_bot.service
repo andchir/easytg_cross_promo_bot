@@ -1,0 +1,15 @@
+[Unit]
+Description=Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=username
+WorkingDirectory=/home/username/easytg_cross_promo_bot
+Environment=PATH=/home/username/easytg_cross_promo_bot/venv/bin
+ExecStart=/home/username/easytg_cross_promo_bot/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

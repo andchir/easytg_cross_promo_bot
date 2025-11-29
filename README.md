@@ -20,3 +20,16 @@
 4. Сообщите **/done** после репоста  
 5. Владелец канала подтвердит **/confirm**  
 6. Ожидайте ответного репоста  
+
+## Deploy
+
+~~~
+sudo nano /etc/systemd/system/easytg_cross_promo_bot.service
+~~~
+
+~~~
+sudo systemctl daemon-reload
+sudo systemctl enable easytg_cross_promo_bot
+sudo systemctl start easytg_cross_promo_bot
+sudo systemctl status easytg_cross_promo_bot
+~~~
