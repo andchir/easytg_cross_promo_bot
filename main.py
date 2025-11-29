@@ -98,7 +98,8 @@ class Database:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Добро пожаловать в бот обмена аудиторией!\n\n"
-        "Используйте /help для просмотра всех команд."
+        "Используйте /help для просмотра всех команд.",
+        parse_mode='Markdown'
     )
 
 
@@ -136,7 +137,8 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "❌ Укажите имя канала.\n"
-            "Пример: /add @mychannel"
+            "Пример: /add @mychannel",
+            parse_mode='Markdown'
         )
         return
 
@@ -153,14 +155,16 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bot_member = await context.bot.get_chat_member(chat.id, context.bot.id)
             if bot_member.status not in ['administrator', 'creator']:
                 await update.message.reply_text(
-                    f"⚠️ Добавьте бота @{context.bot.username} администратором канала {channel_username} "
-                    "с правом чтения сообщений, затем повторите команду."
+                    f"⚠️ Добавьте бота *@{context.bot.username}* администратором канала *{channel_username}* "
+                    "с правом чтения сообщений, затем повторите команду.",
+                    parse_mode='Markdown'
                 )
                 return
         except Exception:
             await update.message.reply_text(
-                f"⚠️ Добавьте бота @{context.bot.username} администратором канала {channel_username}, "
-                "затем повторите команду."
+                f"⚠️ Добавьте бота *@{context.bot.username}* администратором канала *{channel_username}*, "
+                "затем повторите команду.",
+                parse_mode='Markdown'
             )
             return
 
@@ -170,7 +174,7 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Save in the database
         conn = Database.get_connection()
         if not conn:
-            await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+            await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.", parse_mode='Markdown')
             return
 
         cursor = conn.cursor()
@@ -184,12 +188,14 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.commit()
 
             await update.message.reply_text(
-                f"✅ Канал {channel_username} добавлен!\n"
-                f"👥 Подписчиков: {member_count}"
+                f"✅ Канал *{channel_username}* добавлен!\n"
+                f"👥 Подписчиков: {member_count}",
+                parse_mode='Markdown'
             )
         except mysql.connector.IntegrityError:
             await update.message.reply_text(
-                f"❌ Канал {channel_username} уже добавлен в каталог."
+                f"❌ Канал *{channel_username}* уже добавлен в каталог.",
+                parse_mode='Markdown'
             )
         finally:
             cursor.close()
@@ -198,8 +204,9 @@ async def add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error adding channel: {e}")
         await update.message.reply_text(
-            f"❌ Не удалось получить информацию о канале {channel_username}.\n"
-            "Проверьте правильность имени и что канал публичный."
+            f"❌ Не удалось получить информацию о канале *{channel_username}*.\n"
+            "Проверьте правильность имени и что канал публичный.",
+            parse_mode='Markdown'
         )
 
 
@@ -209,7 +216,7 @@ async def my_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     conn = Database.get_connection()
     if not conn:
-        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.", parse_mode='Markdown')
         return
 
     cursor = conn.cursor(dictionary=True)
@@ -224,7 +231,7 @@ async def my_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.close()
 
     if not channels:
-        await update.message.reply_text("📭 У вас нет добавленных каналов.")
+        await update.message.reply_text("📭 У вас нет добавленных каналов.", parse_mode='Markdown')
         return
 
     text = "📋 *Ваши каналы:*\n\n"
@@ -241,7 +248,8 @@ async def delete_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "❌ Укажите имя канала.\n"
-            "Пример: /delete @mychannel"
+            "Пример: /delete @mychannel",
+            parse_mode='Markdown'
         )
         return
 
@@ -251,7 +259,7 @@ async def delete_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     conn = Database.get_connection()
     if not conn:
-        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.", parse_mode='Markdown')
         return
 
     cursor = conn.cursor()
@@ -264,7 +272,8 @@ async def delete_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not cursor.fetchone():
         await update.message.reply_text(
-            f"❌ Канал {channel_username} не найден или вы не являетесь владельцем."
+            f"❌ Канал *{channel_username}* не найден или вы не являетесь владельцем.",
+            parse_mode='Markdown'
         )
         cursor.close()
         conn.close()
@@ -278,7 +287,7 @@ async def delete_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.close()
     conn.close()
 
-    await update.message.reply_text(f"✅ Канал {channel_username} удалён из каталога.")
+    await update.message.reply_text(f"✅ Канал *{channel_username}* удалён из каталога.", parse_mode='Markdown')
 
 
 # Command /update
@@ -288,7 +297,8 @@ async def update_channel_stats(update: Update, context: ContextTypes.DEFAULT_TYP
     if not context.args:
         await update.message.reply_text(
             "❌ Укажите имя канала.\n"
-            "Пример: /update @mychannel"
+            "Пример: /update @mychannel",
+            parse_mode='Markdown'
         )
         return
 
@@ -298,7 +308,7 @@ async def update_channel_stats(update: Update, context: ContextTypes.DEFAULT_TYP
 
     conn = Database.get_connection()
     if not conn:
-        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.", parse_mode='Markdown')
         return
 
     cursor = conn.cursor(dictionary=True)
@@ -312,7 +322,8 @@ async def update_channel_stats(update: Update, context: ContextTypes.DEFAULT_TYP
     channel_data = cursor.fetchone()
     if not channel_data:
         await update.message.reply_text(
-            f"❌ Канал {channel_username} не найден или вы не являетесь владельцем."
+            f"❌ Канал *{channel_username}* не найден или вы не являетесь владельцем.",
+            parse_mode='Markdown'
         )
         cursor.close()
         conn.close()
@@ -341,17 +352,19 @@ async def update_channel_stats(update: Update, context: ContextTypes.DEFAULT_TYP
             change_text = "➡️ без изменений"
 
         await update.message.reply_text(
-            f"✅ Статистика канала {channel_username} обновлена!\n\n"
+            f"✅ Статистика канала *{channel_username}* обновлена!\n\n"
             f"👥 Было: {old_count}\n"
             f"👥 Стало: {new_count}\n"
-            f"{change_text}"
+            f"{change_text}",
+            parse_mode='Markdown'
         )
 
     except Exception as e:
         logger.error(f"Ошибка при обновлении статистики канала: {e}")
         await update.message.reply_text(
-            f"❌ Не удалось получить информацию о канале {channel_username}.\n"
-            "Убедитесь, что бот всё ещё является администратором канала."
+            f"❌ Не удалось получить информацию о канале *{channel_username}*.\n"
+            "Убедитесь, что бот всё ещё является администратором канала.",
+            parse_mode='Markdown'
         )
     finally:
         cursor.close()
@@ -363,7 +376,8 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "❌ Укажите имя своего канала.\n"
-            "Пример: /find @mychannel"
+            "Пример: /find @mychannel",
+            parse_mode='Markdown'
         )
         return
 
@@ -375,7 +389,7 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     conn = Database.get_connection()
     if not conn:
-        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.")
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.", parse_mode='Markdown')
         return
 
     cursor = conn.cursor(dictionary=True)
@@ -389,8 +403,9 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = cursor.fetchone()
     if not result:
         await update.message.reply_text(
-            f"❌ Канал {channel_username} не найден в каталоге.\n"
-            "Добавьте его командой /add"
+            f"❌ Канал *{channel_username}* не найден в каталоге.\n"
+            "Добавьте его командой /add",
+            parse_mode='Markdown'
         )
         cursor.close()
         conn.close()
@@ -417,17 +432,115 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not channels:
         await update.message.reply_text(
             "😔 К сожалению, не найдено каналов с похожей аудиторией.\n"
-            "Попробуйте позже."
+            "Попробуйте позже.",
+            parse_mode='Markdown'
         )
         return
 
     text = f"🔍 *Найдено {len(channels)} похожих каналов:*\n\n"
     for ch in channels:
-        text += f"• {ch['channel_username']} - 👥 {ch['subscriber_count']} подписчиков\n"
+        text += f"• *{ch['channel_username']}* - 👥 {ch['subscriber_count']} подписчиков\n"
 
     text += "\n💡 Подпишитесь на канал, сделайте репост и используйте /done *[канал]*."
 
     await update.message.reply_text(text, parse_mode='Markdown')
+
+
+# Command /done
+async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if not context.args:
+        await update.message.reply_text(
+            "❌ Укажите имя канала, для которого сделали репост.\n"
+            "Пример: /done @targetchannel",
+            parse_mode='Markdown'
+        )
+        return
+
+    to_channel = context.args[0].strip()
+    if not to_channel.startswith('@'):
+        to_channel = '@' + to_channel
+
+    conn = Database.get_connection()
+    if not conn:
+        await update.message.reply_text("❌ Ошибка подключения к базе данных", parse_mode='Markdown')
+        return
+
+    cursor = conn.cursor(dictionary=True)
+
+    # Getting the user's channel
+    cursor.execute(
+        "SELECT channel_username FROM channels WHERE owner_user_id = %s LIMIT 1",
+        (user_id,)
+    )
+
+    from_channel_result = cursor.fetchone()
+    if not from_channel_result:
+        await update.message.reply_text(
+            "❌ У вас нет добавленных каналов. Используйте /add",
+            parse_mode='Markdown'
+        )
+        cursor.close()
+        conn.close()
+        return
+
+    from_channel = from_channel_result['channel_username']
+
+    # Get the owner of the target channel
+    cursor.execute(
+        "SELECT owner_user_id FROM channels WHERE channel_username = %s",
+        (to_channel,)
+    )
+
+    to_owner_result = cursor.fetchone()
+    if not to_owner_result:
+        await update.message.reply_text(
+            f"❌ Канал *{to_channel}* не найден в каталоге",
+            parse_mode='Markdown'
+        )
+        cursor.close()
+        conn.close()
+        return
+
+    to_user_id = to_owner_result['owner_user_id']
+
+    # Create a repost entry
+    try:
+        cursor.execute(
+            "INSERT INTO reposts (from_channel, to_channel, from_user_id, to_user_id, status) "
+            "VALUES (%s, %s, %s, %s, 'pending')",
+            (from_channel, to_channel, user_id, to_user_id)
+        )
+        conn.commit()
+
+        await update.message.reply_text(
+            f"✅ Уведомление отправлено владельцу канала *{to_channel}*.\n"
+            "Ожидайте подтверждения.",
+            parse_mode='Markdown'
+        )
+
+        # Notify the channel owner
+        try:
+            await context.bot.send_message(
+                chat_id=to_user_id,
+                text=f"🔔 *Новое уведомление о репосте!*\n\n"
+                     f"Канал *{from_channel}* сообщает, что сделал репост для *{to_channel}*.\n\n"
+                     f"Проверьте и подтвердите командой:\n"
+                     f"/confirm *{to_channel}* *{from_channel}*",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Не удалось отправить уведомление: {e}")
+
+    except mysql.connector.IntegrityError:
+        await update.message.reply_text(
+            f"❌ Запрос на подтверждение репоста уже существует",
+            parse_mode='Markdown'
+        )
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # Error handler
@@ -450,7 +563,7 @@ def main():
     application.add_handler(CommandHandler("delete", delete_channel))
     application.add_handler(CommandHandler("update", update_channel_stats))
     application.add_handler(CommandHandler("find", find_channels))
-    # application.add_handler(CommandHandler("done", done_repost))
+    application.add_handler(CommandHandler("done", done_repost))
     # application.add_handler(CommandHandler("confirm", confirm_repost))
     # application.add_handler(CommandHandler("list", list_pending))
     # application.add_handler(CommandHandler("abuse", report_abuse))
