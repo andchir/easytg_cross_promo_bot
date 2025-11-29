@@ -464,7 +464,7 @@ async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     conn = Database.get_connection()
     if not conn:
-        await update.message.reply_text("❌ Ошибка подключения к базе данных", parse_mode='Markdown')
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.", parse_mode='Markdown')
         return
 
     cursor = conn.cursor(dictionary=True)
@@ -543,6 +543,135 @@ async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.close()
 
 
+# Command /confirm
+async def confirm_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "❌ Укажите имя своего канала и канал, на котором сделан репост.\n"
+            "Пример: /confirm *@mychannel* *@repost_channel*",
+            parse_mode='Markdown'
+        )
+        return
+
+    my_channel = context.args[0].strip()
+    if not my_channel.startswith('@'):
+        my_channel = '@' + my_channel
+
+    repost_channel = context.args[1].strip()
+    if not repost_channel.startswith('@'):
+        repost_channel = '@' + repost_channel
+
+    conn = Database.get_connection()
+    if not conn:
+        await update.message.reply_text("❌ Ошибка. Пожалуйста, попробуйте повторить попытку позже.", parse_mode='Markdown')
+        return
+
+    cursor = conn.cursor(dictionary=True)
+
+    # Check that the user is the owner of their channel
+    cursor.execute(
+        "SELECT id FROM channels WHERE channel_username = %s AND owner_user_id = %s",
+        (my_channel, user_id)
+    )
+
+    if not cursor.fetchone():
+        await update.message.reply_text(
+            f"❌ Канал *{my_channel}* не найден или вы не являетесь его владельцем",
+            parse_mode='Markdown'
+        )
+        cursor.close()
+        conn.close()
+        return
+
+    # Finding a pending repost
+    cursor.execute(
+        "SELECT r.id, r.from_channel, r.from_user_id "
+        "FROM reposts r "
+        "WHERE r.to_channel = %s AND r.from_channel = %s AND r.to_user_id = %s AND r.status = 'pending' "
+        "LIMIT 1",
+        (my_channel, repost_channel, user_id)
+    )
+
+    repost = cursor.fetchone()
+    if not repost:
+        await update.message.reply_text(
+            f"❌ Нет ожидающих подтверждения репостов от канала *{repost_channel}* для *{my_channel}*.",
+            parse_mode='Markdown'
+        )
+        cursor.close()
+        conn.close()
+        return
+
+    # Updating the subscriber count on both channels.
+    updated_counts = {}
+
+    # Updating the subscribers of the channel that reposted.
+    try:
+        repost_chat = await context.bot.get_chat(repost_channel)
+        repost_member_count = await context.bot.get_chat_member_count(repost_chat.id)
+
+        cursor.execute(
+            "UPDATE channels SET subscriber_count = %s WHERE channel_username = %s",
+            (repost_member_count, repost_channel)
+        )
+
+        updated_counts[repost_channel] = repost_member_count
+    except Exception as e:
+        logger.error(f"Не удалось обновить количество подписчиков для {repost_channel}: {e}")
+
+    # Updating your channel's subscribers
+    try:
+        my_chat = await context.bot.get_chat(my_channel)
+        my_member_count = await context.bot.get_chat_member_count(my_chat.id)
+
+        cursor.execute(
+            "UPDATE channels SET subscriber_count = %s WHERE channel_username = %s",
+            (my_member_count, my_channel)
+        )
+
+        updated_counts[my_channel] = my_member_count
+    except Exception as e:
+        logger.error(f"Не удалось обновить количество подписчиков для {my_channel}: {e}")
+
+    # Confirming the repost
+    cursor.execute(
+        "UPDATE reposts SET status = 'confirmed', confirmed_date = NOW() WHERE id = %s",
+        (repost['id'],)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    response_text = f"✅ Репост от канала *{repost_channel}* для вашего канала *{my_channel}* подтверждён!"
+    if updated_counts:
+        response_text += "\n\n📊 *Обновлена статистика:*"
+        for channel, count in updated_counts.items():
+            response_text += f"\n• *{channel}*: {count} подписчиков"
+
+    await update.message.reply_text(response_text, parse_mode='Markdown')
+
+    # Notify the author of the repost
+    try:
+        notification_text = (
+            f"🎉 *Ваш репост подтверждён!*\n\n"
+            f"Владелец канала *{my_channel}* подтвердил репост с вашего канала *{repost_channel}*."
+        )
+        if updated_counts:
+            notification_text += "\n\n📊 *Обновлена статистика:*"
+            for channel, count in updated_counts.items():
+                notification_text += f"\n• *{channel}*: {count} подписчиков"
+
+        await context.bot.send_message(
+            chat_id=repost['from_user_id'],
+            text=notification_text,
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Не удалось отправить уведомление: {e}")
+
+
 # Error handler
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"Update {update} caused error {context.error}")
@@ -564,7 +693,7 @@ def main():
     application.add_handler(CommandHandler("update", update_channel_stats))
     application.add_handler(CommandHandler("find", find_channels))
     application.add_handler(CommandHandler("done", done_repost))
-    # application.add_handler(CommandHandler("confirm", confirm_repost))
+    application.add_handler(CommandHandler("confirm", confirm_repost))
     # application.add_handler(CommandHandler("list", list_pending))
     # application.add_handler(CommandHandler("abuse", report_abuse))
 
