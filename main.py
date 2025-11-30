@@ -735,7 +735,7 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (
         "📊 *Статистика бота:*\n\n"
-        f"📺 Всего каналов: *{channels_count}*\n"
+        f"📺 Всего групп: *{channels_count}*\n"
         f"✅ Подтверждённых репостов: *{confirmed_count}*\n"
         f"⏳ Ожидают подтверждения: *{pending_count}*"
     )
