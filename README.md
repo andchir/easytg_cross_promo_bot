@@ -34,3 +34,38 @@ sudo systemctl enable easytg_cross_promo_bot
 sudo systemctl start easytg_cross_promo_bot
 sudo systemctl status easytg_cross_promo_bot
 ~~~
+
+## Режим работы
+
+Бот поддерживает два режима работы:
+
+### Polling (по умолчанию)
+
+Бот периодически опрашивает сервер Telegram на наличие новых сообщений.
+
+```
+BOT_MODE=polling
+```
+
+### Webhook (рекомендуется для продакшена)
+
+Для более быстрой работы можно использовать режим webhook. В этом режиме бот создает веб-сервер, на который Telegram отправляет обновления.
+
+```
+BOT_MODE=webhook
+WEBHOOK_URL=https://example.com:8443
+WEBHOOK_PORT=8443
+WEBHOOK_SECRET_TOKEN=your_secret_token
+```
+
+**Требования для webhook:**
+- Публичный IP адрес или домен с HTTPS
+- Telegram поддерживает только порты: 443, 80, 88, 8443
+
+**Опциональные параметры для прямого подключения (без reverse proxy):**
+```
+WEBHOOK_CERT=/path/to/cert.pem
+WEBHOOK_KEY=/path/to/private.key
+```
+
+При использовании reverse proxy (nginx, haproxy) сертификаты настраиваются на стороне прокси.
