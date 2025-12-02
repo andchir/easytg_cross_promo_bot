@@ -27,6 +27,16 @@ DB_CONFIG = {
 
 BOT_TOKEN = os.environ['BOT_TOKEN']
 
+# Bot mode configuration
+BOT_MODE = os.environ.get('BOT_MODE', 'polling').lower()
+
+# Webhook configuration (used when BOT_MODE=webhook)
+WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
+WEBHOOK_PORT = int(os.environ.get('WEBHOOK_PORT', '8443'))
+WEBHOOK_SECRET_TOKEN = os.environ.get('WEBHOOK_SECRET_TOKEN', '')
+WEBHOOK_CERT = os.environ.get('WEBHOOK_CERT', '')
+WEBHOOK_KEY = os.environ.get('WEBHOOK_KEY', '')
+
 
 class Database:
 
@@ -841,8 +851,34 @@ def main():
     application.add_error_handler(error_handler)
 
     # Launching the bot
-    logger.info("The bot has been launched")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    if BOT_MODE == 'webhook':
+        if not WEBHOOK_URL:
+            logger.error("WEBHOOK_URL is required when BOT_MODE=webhook")
+            return
+
+        logger.info(f"Starting bot in webhook mode on port {WEBHOOK_PORT}")
+
+        # Prepare webhook parameters
+        webhook_params = {
+            'listen': '0.0.0.0',
+            'port': WEBHOOK_PORT,
+            'webhook_url': WEBHOOK_URL,
+            'allowed_updates': Update.ALL_TYPES,
+        }
+
+        # Add secret token if provided
+        if WEBHOOK_SECRET_TOKEN:
+            webhook_params['secret_token'] = WEBHOOK_SECRET_TOKEN
+
+        # Add SSL certificate and key if provided (for direct webhook without reverse proxy)
+        if WEBHOOK_CERT and WEBHOOK_KEY:
+            webhook_params['cert'] = WEBHOOK_CERT
+            webhook_params['key'] = WEBHOOK_KEY
+
+        application.run_webhook(**webhook_params)
+    else:
+        logger.info("Starting bot in polling mode")
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == '__main__':
