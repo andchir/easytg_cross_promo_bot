@@ -1,6 +1,6 @@
 [Unit]
 Description=Telegram Bot
-After=network.target
+After=network.target mysql.service
 
 [Service]
 Type=simple
