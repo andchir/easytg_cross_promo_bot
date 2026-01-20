@@ -107,6 +107,20 @@ class VKDatabase:
             )
         ''')
 
+        # Add repost_channel column if it doesn't exist
+        try:
+            cursor.execute('''
+                ALTER TABLE vk_reposts
+                ADD COLUMN repost_channel VARCHAR(255) NULL AFTER to_channel
+            ''')
+            conn.commit()
+            logger.info("Added repost_channel column to vk_reposts table")
+        except mysql.connector.Error as err:
+            if err.errno == 1060:  # Duplicate column name
+                pass
+            else:
+                logger.error(f"Error adding repost_channel column: {err}")
+
         conn.commit()
         cursor.close()
         conn.close()
@@ -784,7 +798,7 @@ def handle_help(user_id):
 удалить [группа] - Удалить группу из каталога
 обновить [группа] - Обновить количество подписчиков
 найти [группа] - Найти похожие группы для обмена
-готово [группа] - Сообщить владельцу группы о выполненном репосте
+готово [группа] [на_какой_группе] - Сообщить владельцу группы о выполненном репосте
 подтвердить [своя_группа] [группа_репоста] - Подтвердить репост
 список - Список групп, ожидающих подтверждения
 статистика - Показать статистику бота
@@ -1100,23 +1114,24 @@ def handle_find_channels(user_id, message_text):
         text += (f"• {ch['channel_username']} - 👥 {ch['subscriber_count']} подписчиков\n"
                  f"  ✅ Подтверждено: {ch['confirmed_count']} | ⏳ Ожидает: {ch['pending_count']}\n")
 
-    text += "\n💡 Подпишитесь на группу, сделайте репост и используйте команду 'готово [группа]'."
+    text += "\n💡 Подпишитесь на группу, сделайте репост и используйте команду 'готово [группа] [на_какой_группе]'."
 
     vk_send_message(user_id, text)
 
 
 def handle_done_repost(user_id, message_text):
     """Handle done repost command"""
-    parts = message_text.split(maxsplit=1)
-    if len(parts) < 2:
+    parts = message_text.split()
+    if len(parts) < 3:
         vk_send_message(
             user_id,
-            "❌ Укажите имя группы, для которой сделали репост.\n"
-            "Пример: готово targetgroup"
+            "❌ Укажите имя группы, для которой сделали репост, и группу, на которой был сделан репост.\n"
+            "Пример: готово targetgroup yourgroup"
         )
         return
 
     to_channel = parts[1].strip()
+    repost_channel = parts[2].strip()
 
     conn = VKDatabase.get_connection()
     if not conn:
@@ -1164,9 +1179,9 @@ def handle_done_repost(user_id, message_text):
     # Create a repost entry
     try:
         cursor.execute(
-            "INSERT INTO vk_reposts (from_channel, to_channel, from_user_id, to_user_id, status) "
-            "VALUES (%s, %s, %s, %s, 'pending')",
-            (from_channel, to_channel, user_id, to_user_id)
+            "INSERT INTO vk_reposts (from_channel, to_channel, repost_channel, from_user_id, to_user_id, status) "
+            "VALUES (%s, %s, %s, %s, %s, 'pending')",
+            (from_channel, to_channel, repost_channel, user_id, to_user_id)
         )
         conn.commit()
 
@@ -1181,7 +1196,7 @@ def handle_done_repost(user_id, message_text):
             vk_send_message(
                 to_user_id,
                 f"🔔 Новое уведомление о репосте!\n\n"
-                f"Группа {from_channel} сообщает, что сделала репост для {to_channel}.\n\n"
+                f"Группа {from_channel} сообщает, что сделала репост для {to_channel} в группе {repost_channel}.\n\n"
                 f"Проверьте и подтвердите командой:\n"
                 f"подтвердить {to_channel} {from_channel}"
             )
@@ -1542,7 +1557,7 @@ def vk_callback():
             if message_text_lower == 'готово_помощь':
                 vk_send_message(
                     message_user_id,
-                    "Для отправки уведомления о репосте используйте команду:\nготово [имя_группы]\n\nПример: готово targetgroup"
+                    "Для отправки уведомления о репосте используйте команду:\nготово [имя_группы] [на_какой_группе]\n\nПример: готово targetgroup yourgroup"
                 )
             else:
                 handle_done_repost(message_user_id, message_text_lower)
