@@ -98,6 +98,20 @@ class Database:
             )
         ''')
 
+        # Add repost_channel column if it doesn't exist
+        try:
+            cursor.execute('''
+                ALTER TABLE reposts
+                ADD COLUMN repost_channel VARCHAR(255) NULL AFTER to_channel
+            ''')
+            conn.commit()
+            logger.info("Added repost_channel column to reposts table")
+        except mysql.connector.Error as err:
+            if err.errno == 1060:  # Duplicate column name
+                pass
+            else:
+                logger.error(f"Error adding repost_channel column: {err}")
+
         conn.commit()
         cursor.close()
         conn.close()
@@ -123,7 +137,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /delete *[канал]* - Удалить канал из каталога
 /update *[канал]* - Обновить количество подписчиков
 /find *[канал]* - Найти похожие каналы для обмена
-/done *[канал]* - Сообщить владельцу канала о выполненном репосте
+/done *[канал]* *[на_каком_канале]* - Сообщить владельцу канала о выполненном репосте
 /confirm *[свой_канал]* *[канал_репоста]* - Подтвердить репост
 /list - Список каналов, ожидающих подтверждения
 /stat - Показать статистику бота
@@ -455,7 +469,7 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += (f"• *{ch['channel_username']}* - 👥 {ch['subscriber_count']} подписчиков\n"
                  f"  ✅ Подтверждено: {ch['confirmed_count']} | ⏳ Ожидает: {ch['pending_count']}\n")
 
-    text += "\n💡 Подпишитесь на канал, сделайте репост и используйте /done *[канал]*."
+    text += "\n💡 Подпишитесь на канал, сделайте репост и используйте /done *[канал]* *[на_каком_канале]*."
 
     await update.message.reply_text(text, parse_mode='Markdown')
 
@@ -464,10 +478,10 @@ async def find_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
-    if not context.args:
+    if len(context.args) < 2:
         await update.message.reply_text(
-            "❌ Укажите имя канала, для которого сделали репост.\n"
-            "Пример: /done @targetchannel",
+            "❌ Укажите имя канала, для которого сделали репост, и канал, на котором был сделан репост.\n"
+            "Пример: /done @targetchannel @yourchannel",
             parse_mode='Markdown'
         )
         return
@@ -475,6 +489,10 @@ async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     to_channel = context.args[0].strip()
     if not to_channel.startswith('@'):
         to_channel = '@' + to_channel
+
+    repost_channel = context.args[1].strip()
+    if not repost_channel.startswith('@'):
+        repost_channel = '@' + repost_channel
 
     conn = Database.get_connection()
     if not conn:
@@ -522,9 +540,9 @@ async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create a repost entry
     try:
         cursor.execute(
-            "INSERT INTO reposts (from_channel, to_channel, from_user_id, to_user_id, status) "
-            "VALUES (%s, %s, %s, %s, 'pending')",
-            (from_channel, to_channel, user_id, to_user_id)
+            "INSERT INTO reposts (from_channel, to_channel, repost_channel, from_user_id, to_user_id, status) "
+            "VALUES (%s, %s, %s, %s, %s, 'pending')",
+            (from_channel, to_channel, repost_channel, user_id, to_user_id)
         )
         conn.commit()
 
@@ -539,7 +557,7 @@ async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=to_user_id,
                 text=f"🔔 *Новое уведомление о репосте!*\n\n"
-                     f"Канал *{from_channel}* сообщает, что сделал репост для *{to_channel}*.\n\n"
+                     f"Канал *{from_channel}* сообщает, что сделал репост для *{to_channel}* на канале *{repost_channel}*.\n\n"
                      f"Проверьте и подтвердите командой:\n"
                      f"/confirm *{to_channel}* *{from_channel}*",
                 parse_mode='Markdown'
