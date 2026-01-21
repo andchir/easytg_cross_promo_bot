@@ -1158,6 +1158,22 @@ def handle_done_repost(user_id, message_text):
     #     conn.close()
     #     return
     #
+
+    # Check that the user is the owner of their channel
+    cursor.execute(
+        "SELECT id FROM vk_channels WHERE channel_username = %s AND owner_user_id = %s",
+        (repost_channel, user_id)
+    )
+
+    if not cursor.fetchone():
+        vk_send_message(
+            user_id,
+            f"❌ Группа {repost_channel} не найдена или вы не являетесь её владельцем"
+        )
+        cursor.close()
+        conn.close()
+        return
+
     from_channel = repost_channel
 
     # Get the owner of the target channel

@@ -517,6 +517,22 @@ async def done_repost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #     conn.close()
     #     return
     #
+
+    # Check that the user is the owner of their channel
+    cursor.execute(
+        "SELECT id FROM channels WHERE channel_username = %s AND owner_user_id = %s",
+        (repost_channel, user_id)
+    )
+
+    if not cursor.fetchone():
+        await update.message.reply_text(
+            f"❌ Канал *{repost_channel}* не найден или вы не являетесь его владельцем",
+            parse_mode='Markdown'
+        )
+        cursor.close()
+        conn.close()
+        return
+
     from_channel = repost_channel
 
     # Get the owner of the target channel
