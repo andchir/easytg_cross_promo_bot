@@ -319,6 +319,7 @@ def get_admin_template():
                         <th>ID</th>
                         <th>От канала</th>
                         <th>Для канала</th>
+                        <th>Канал репоста</th>
                         <th>ID отправителя</th>
                         <th>ID получателя</th>
                         <th>Статус</th>
@@ -332,6 +333,7 @@ def get_admin_template():
                         <td>{{ item.id }}</td>
                         <td>{{ item.from_channel }}</td>
                         <td>{{ item.to_channel }}</td>
+                        <td>{{ item.repost_channel or '-' }}</td>
                         <td>{{ item.from_user_id }}</td>
                         <td>{{ item.to_user_id }}</td>
                         <td>
