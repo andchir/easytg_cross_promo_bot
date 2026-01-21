@@ -1143,22 +1143,22 @@ def handle_done_repost(user_id, message_text):
     cursor = conn.cursor(dictionary=True)
 
     # Getting the user's channel
-    cursor.execute(
-        "SELECT channel_username FROM vk_channels WHERE owner_user_id = %s LIMIT 1",
-        (user_id,)
-    )
-
-    from_channel_result = cursor.fetchone()
-    if not from_channel_result:
-        vk_send_message(
-            user_id,
-            "❌ У вас нет добавленных групп. Используйте команду 'добавить'"
-        )
-        cursor.close()
-        conn.close()
-        return
-
-    from_channel = from_channel_result['channel_username']
+    # cursor.execute(
+    #     "SELECT channel_username FROM vk_channels WHERE owner_user_id = %s LIMIT 1",
+    #     (user_id,)
+    # )
+    #
+    # from_channel_result = cursor.fetchone()
+    # if not from_channel_result:
+    #     vk_send_message(
+    #         user_id,
+    #         "❌ У вас нет добавленных групп. Используйте команду 'добавить'"
+    #     )
+    #     cursor.close()
+    #     conn.close()
+    #     return
+    #
+    from_channel = repost_channel
 
     # Get the owner of the target channel
     cursor.execute(
